@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from dep_risk.models import Confidence, DataGap, Rating, RiskReport, Source
+from dep_risk.models import Confidence, DataGap, PackageFacts, Rating, RiskReport, Source
 
 
 def _build_report(
@@ -27,6 +27,24 @@ def _build_report(
 
 def _data_gap() -> DataGap:
     return DataGap(source=Source.PYPI, reason="Package metadata was unavailable.")
+
+
+def test_missing_package_source_requires_a_matching_gap() -> None:
+    gaps = (
+        DataGap(source=Source.GITHUB, reason="Repository metadata was unavailable."),
+        DataGap(source=Source.OSV, reason="Vulnerability data was unavailable."),
+    )
+
+    with pytest.raises(ValidationError, match="pypi is missing but no data gap was recorded"):
+        PackageFacts(package="requests", gaps=gaps)
+
+
+def test_missing_package_sources_are_valid_when_all_have_gaps() -> None:
+    gaps = tuple(DataGap(source=source, reason="Source data was unavailable.") for source in Source)
+
+    facts = PackageFacts(package="requests", gaps=gaps)
+
+    assert facts.gaps == gaps
 
 
 def test_valid_report_builds() -> None:

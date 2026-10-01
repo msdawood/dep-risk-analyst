@@ -1,8 +1,7 @@
-from datetime import datetime
 from enum import StrEnum
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 
 class Rating(StrEnum):
@@ -24,15 +23,15 @@ class Source(StrEnum):
 
 
 class PyPIFacts(BaseModel):
-    name: str | None
-    latest_version: str | None
+    name: str
+    latest_version: str
     summary: str | None
     license: str | None
     requires_python: str | None
     author: str | None
     maintainer: str | None
     release_count: int | None
-    latest_release_at: datetime | None
+    latest_release_at: AwareDatetime | None
     latest_yanked: bool
     repository_url: str | None
 
@@ -40,11 +39,11 @@ class PyPIFacts(BaseModel):
 
 
 class GitHubFacts(BaseModel):
-    full_name: str | None
+    full_name: str
     archived: bool
     stars: int | None
     open_issues: int | None
-    last_commit_at: datetime | None
+    last_commit_at: AwareDatetime | None
     contributor_count: int | None
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -79,9 +78,21 @@ class PackageFacts(BaseModel):
     pypi: PyPIFacts | None = None
     github: GitHubFacts | None = None
     osv: OSVFacts | None = None
-    gaps: list[DataGap] = []
+    gaps: tuple[DataGap, ...] = Field(default_factory=tuple)
 
     model_config = ConfigDict(frozen=True, extra="forbid")
+
+    @model_validator(mode="after")
+    def _missing_source_needs_gap(self) -> Self:
+        gap_sources = {g.source for g in self.gaps}
+        for src, value in (
+            (Source.PYPI, self.pypi),
+            (Source.GITHUB, self.github),
+            (Source.OSV, self.osv),
+        ):
+            if value is None and src not in gap_sources:
+                raise ValueError(f"{src} is missing but no data gap was recorded")
+        return self
 
 
 class ReportNarrative(BaseModel):
@@ -99,8 +110,8 @@ class RiskReport(BaseModel):
     confidence: Confidence
     technical_summary: str
     executive_summary: str
-    data_gaps: list[DataGap]
-    generated_at: datetime
+    data_gaps: tuple[DataGap, ...] = Field(default_factory=tuple)
+    generated_at: AwareDatetime
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
