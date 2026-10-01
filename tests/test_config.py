@@ -1,7 +1,29 @@
+import json
+import logging
+from collections.abc import Iterator
+
 import pytest
 from pydantic import ValidationError
 
 from dep_risk.config import Settings as AppSettings
+from dep_risk.config import get_settings
+
+
+@pytest.fixture
+def isolated_settings_logging() -> Iterator[None]:
+    get_settings.cache_clear()
+    root_logger = logging.getLogger()
+    original_handlers = root_logger.handlers[:]
+    original_level = root_logger.level
+    yield
+    get_settings.cache_clear()
+    for handler in root_logger.handlers[:]:
+        if handler not in original_handlers:
+            root_logger.removeHandler(handler)
+    for handler in original_handlers:
+        if handler not in root_logger.handlers:
+            root_logger.addHandler(handler)
+    root_logger.setLevel(original_level)
 
 
 def test_missing_api_key_raises_validation_error(monkeypatch):
@@ -49,3 +71,33 @@ def test_valid_construction_with_defaults(monkeypatch):
     assert settings.llm_model == "claude-haiku-4-5-20251001"
     assert settings.http_timeout_seconds == 10.0
     assert settings.max_agent_iterations == 6
+
+
+def test_settings_construction_does_not_warn_about_missing_github_token(monkeypatch, caplog):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_key")
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+
+    with caplog.at_level(logging.WARNING, logger="dep_risk.config"):
+        AppSettings(_env_file=None)
+
+    assert not [record for record in caplog.records if record.name == "dep_risk.config"]
+
+
+def test_get_settings_configures_json_logging_before_warning(
+    monkeypatch, capsys, caplog, isolated_settings_logging
+):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_key")
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.setenv("LOG_JSON", "true")
+
+    with caplog.at_level(logging.WARNING, logger="dep_risk.config"):
+        settings = get_settings()
+
+    captured = capsys.readouterr()
+    warning = json.loads(captured.err)
+    assert settings.github_token is None
+    assert warning["level"] == "WARNING"
+    assert warning["logger"] == "dep_risk.config"
+    assert warning["message"] == "GitHub token is not set."
+    assert "time" in warning
+    assert captured.out == ""
