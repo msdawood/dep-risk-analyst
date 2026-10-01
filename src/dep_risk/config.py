@@ -1,7 +1,7 @@
 import functools
 import logging
-
 from typing import Any
+
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
