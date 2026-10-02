@@ -4,8 +4,9 @@ import httpx
 import pytest
 import respx
 from httpx import Response
+from tenacity import wait_none
 
-from dep_risk.clients.base import BaseClient
+from dep_risk.clients.base import BaseClient, _is_retryable, as_object
 from dep_risk.errors import (
     InvalidResponseError,
     RateLimitedError,
@@ -25,7 +26,7 @@ class _DummyClient(BaseClient):
 @pytest.fixture
 async def client() -> AsyncIterator[_DummyClient]:
     async with httpx.AsyncClient() as http:
-        yield _DummyClient(http)
+        yield _DummyClient(http, max_attempts=3, wait=wait_none())
 
 
 async def test_200_response_returns_parsed_json(
@@ -43,7 +44,9 @@ async def test_200_response_returns_parsed_json(
 async def test_200_response_returns_invalid_data(
     client: _DummyClient, respx_mock: respx.MockRouter
 ) -> None:
-    route = respx_mock.get(URL).mock(return_value=Response(200, json=None))
+    route = respx_mock.get(URL).mock(
+        return_value=Response(200, content=b"<html>Bad gateway</html>")
+    )
 
     with pytest.raises(InvalidResponseError):
         await client._request_json("GET", URL)
@@ -124,3 +127,22 @@ async def test_401_response_raise_source_error(
         await client._request_json("GET", URL)
 
     assert route.call_count == 1
+
+
+@pytest.mark.parametrize("bad", [None, [], [1, 2], "text", 42])
+def test_as_object_rejects_non_objects(bad: object) -> None:
+    with pytest.raises(InvalidResponseError):
+        as_object(Source.PYPI, bad)
+
+
+def test_as_object_returns_dict_unchanged() -> None:
+    assert as_object(Source.PYPI, {"a": 1}) == {"a": 1}
+
+
+def test_is_retryable() -> None:
+
+    # Should retry on SourceUnavailableError
+    assert _is_retryable(SourceUnavailableError("pypi", "error"))
+
+    # Should not retry on RateLimitedError
+    assert not _is_retryable(RateLimitedError("pypi", "error"))

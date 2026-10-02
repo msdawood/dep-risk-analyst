@@ -28,6 +28,12 @@ def _is_retryable(exc: BaseException) -> bool:
     return isinstance(exc, SourceUnavailableError) and not isinstance(exc, RateLimitedError)
 
 
+def as_object(source: Source, data: Any) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        raise InvalidResponseError(source, f"expected a JSON object, got {type(data).__name__}")
+    return data
+
+
 class BaseClient:
     source: Source  # set by each subclass
 
@@ -53,7 +59,9 @@ class BaseClient:
     async def _request_once(self, method: str, url: str, **kwargs: Any) -> Any:
         try:
             response = await self._http.request(method, url, **kwargs)
-        except httpx.TransportError as exc:  # includes every httpx timeout
+        except (
+            httpx.RequestError
+        ) as exc:  # includes every httpx timeout, decoding and too many redirects
             raise SourceUnavailableError(self.source, type(exc).__name__) from exc
         self._raise_for_status(response)
         try:
