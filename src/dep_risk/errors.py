@@ -4,6 +4,9 @@ class DepRiskError(Exception): ...
 class ConfigurationError(DepRiskError): ...
 
 
+class InvalidInputError(DepRiskError): ...  # For bad package names
+
+
 class SourceError(DepRiskError):
     def __init__(self, source: str, message: str) -> None:
         super().__init__(f"[{source}] {message}")

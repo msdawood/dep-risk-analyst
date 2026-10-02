@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     llm_model: str = "claude-haiku-4-5-20251001"
 
     http_timeout_seconds: float = Field(default=10.0, gt=0)
-    http_max_retries: int = Field(default=3, ge=1, le=10)
+    http_max_attempts: int = Field(default=3, ge=1, le=10)
     max_agent_iterations: int = Field(default=6, ge=1, le=20)
 
     log_level: str = "INFO"
