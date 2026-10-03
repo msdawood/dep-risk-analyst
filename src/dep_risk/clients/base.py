@@ -71,6 +71,8 @@ class BaseClient:
 
     def _raise_for_status(self, response: httpx.Response) -> None:
         status_code = response.status_code
+        if 300 <= status_code < 400:  # only reached if the caller disabled follow_redirects
+            raise SourceError(self.source, f"unexpected redirect HTTP {status_code}")
         if status_code == 404:
             raise SourceNotFoundError(self.source, f"HTTP {status_code}")
         if status_code == 429:

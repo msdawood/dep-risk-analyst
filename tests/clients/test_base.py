@@ -146,3 +146,18 @@ def test_is_retryable() -> None:
 
     # Should not retry on RateLimitedError
     assert not _is_retryable(RateLimitedError("pypi", "error"))
+
+
+async def test_unfollowed_redirect_is_an_error_not_parsed_as_data(
+    client: _DummyClient, respx_mock: respx.MockRouter
+) -> None:
+    body = {"message": "Moved Permanently"}
+    route = respx_mock.get(URL).mock(
+        return_value=Response(301, json=body, headers={"Location": "https://example.test/new"})
+    )
+
+    with pytest.raises(SourceError) as excinfo:
+        await client._request_json("GET", URL)
+
+    assert "redirect" in str(excinfo.value)
+    assert route.call_count == 1
