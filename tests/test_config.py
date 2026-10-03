@@ -1,6 +1,7 @@
 import json
 import logging
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -82,16 +83,27 @@ def test_settings_construction_does_not_warn_about_missing_github_token(monkeypa
 
     assert not [record for record in caplog.records if record.name == "dep_risk.config"]
 
+@pytest.fixture
+def isolated_settings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[None]:
+    monkeypatch.chdir(tmp_path)  # Settings reads ".env" from the cwd; keep the real one out
+    get_settings.cache_clear()  # get_settings is lru_cached; start from a clean slate
+    root = logging.getLogger()
+    handlers, level = root.handlers[:], root.level
+    yield
+    get_settings.cache_clear()
+    root.handlers[:] = handlers  # undo configure_logging's global changes
+    root.setLevel(level)
 
+
+@pytest.mark.usefixtures("isolated_settings")
 def test_get_settings_configures_json_logging_before_warning(
-    monkeypatch, capsys, caplog, isolated_settings_logging
-):
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_key")
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     monkeypatch.setenv("LOG_JSON", "true")
 
-    with caplog.at_level(logging.WARNING, logger="dep_risk.config"):
-        settings = get_settings()
+    settings = get_settings()
 
     captured = capsys.readouterr()
     warning = json.loads(captured.err)
