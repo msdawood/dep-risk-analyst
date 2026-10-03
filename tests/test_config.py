@@ -83,6 +83,7 @@ def test_settings_construction_does_not_warn_about_missing_github_token(monkeypa
 
     assert not [record for record in caplog.records if record.name == "dep_risk.config"]
 
+
 @pytest.fixture
 def isolated_settings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[None]:
     monkeypatch.chdir(tmp_path)  # Settings reads ".env" from the cwd; keep the real one out
