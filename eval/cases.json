@@ -1,0 +1,14 @@
+[
+  {"package": "requests", "rating": "low", "confidence": "high",
+   "note": "actively maintained, no known vulnerabilities in the latest release"},
+  {"package": "pycrypto", "rating": "high", "confidence": "medium",
+   "note": "abandoned since 2013, CRITICAL CVE-2013-7459 in the final release, no GitHub link"},
+  {"package": "nose", "rating": "medium", "confidence": "medium",
+   "note": "unmaintained for about a decade; stale release alone gives MEDIUM, no GitHub link"},
+  {"package": "py", "rating": "medium", "confidence": "medium",
+   "note": "stale release; PyPI lists only a docs site, so GitHub is a data gap"},
+  {"package": "this-package-does-not-exist-xyz-123", "expect_error": "not_found",
+   "note": "a missing package is an error, not a low-risk report"},
+  {"package": "../etc/passwd", "expect_error": "invalid_input",
+   "note": "rejected before any network call"}
+]
