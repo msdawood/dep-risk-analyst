@@ -1,7 +1,7 @@
 [project]
 name = "dep-risk"
 version = "0.1.0"
-description = "Add your description here"
+description = "Dependency risk analyst: an AI agent that assesses PyPI packages using PyPI, GitHub and OSV.dev data"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

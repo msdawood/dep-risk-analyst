@@ -11,3 +11,13 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run mypy src
       - run: uv run pytest
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t dep-risk .
+      - run: docker run --rm dep-risk --help
+      - name: Container runs as non-root
+        run: test "$(docker run --rm --entrypoint id dep-risk -u)" != "0"
