@@ -11,7 +11,7 @@ from dep_risk.models import DataGap, GitHubFacts, OSVFacts, PackageFacts, PyPIFa
 logger = logging.getLogger(__name__)
 
 
-async def _attempt[T](
+async def attempt[T](
     source: Source,
     call: Awaitable[T],
     *,
@@ -37,7 +37,7 @@ async def gather_facts(
 
     # PyPI comes first: OSV needs its version and GitHub needs its repository link.
     # A missing package is fatal. Any other PyPI failure leaves nothing to look up.
-    pypi_result: PyPIFacts | DataGap = await _attempt(
+    pypi_result: PyPIFacts | DataGap = await attempt(
         Source.PYPI, pypi.fetch(name), fatal=(SourceNotFoundError, InvalidInputError)
     )
     if isinstance(pypi_result, DataGap):
@@ -50,7 +50,7 @@ async def gather_facts(
             ),
         )
 
-    osv_call = _attempt(Source.OSV, osv.fetch(name, pypi_result.latest_version))
+    osv_call = attempt(Source.OSV, osv.fetch(name, pypi_result.latest_version))
     github_result: GitHubFacts | DataGap
     osv_result: OSVFacts | DataGap
     if pypi_result.repository_url is None:
@@ -60,7 +60,7 @@ async def gather_facts(
         osv_result = await osv_call
     else:
         osv_result, github_result = await asyncio.gather(
-            osv_call, _attempt(Source.GITHUB, github.fetch(pypi_result.repository_url))
+            osv_call, attempt(Source.GITHUB, github.fetch(pypi_result.repository_url))
         )
 
     return PackageFacts(

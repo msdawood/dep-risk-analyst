@@ -40,4 +40,6 @@ def configure_logging(level: str, json_output: bool) -> None:
 
     root_logger.setLevel(numeric_level)
     root_logger.addHandler(handler)
-    logging.getLogger("httpx").setLevel(logging.WARNING)
+
+    for package in ("httpx", "httpx2", "httpcore"):
+        logging.getLogger(package).setLevel(logging.WARNING)
